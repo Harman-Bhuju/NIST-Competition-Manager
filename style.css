@@ -1,0 +1,328 @@
+/* NIST - Modern Premium Design System */
+:root {
+    /* Color Palette */
+    --primary: #4f46e5;       /* Indigo */
+    --primary-hover: #4338ca;
+    --secondary: #10b981;     /* Emerald */
+    --danger: #ef4444;        /* Rose */
+    --warning: #f59e0b;       /* Amber */
+    --info: #3b82f6;          /* Blue */
+    
+    /* Neutrals */
+    --bg-main: #ffffff;
+    --bg-card: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --radius: 12px;
+    
+    /* Grayscale */
+    --black: #000000;
+    --white: #ffffff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-700: #374151;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    
+    --container-width: 1280px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+}
+
+h1, h2, h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 1.5rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 1540px; /* Expanded for better breadth */
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* --- NAVBAR --- */
+.navbar {
+    background: #111827;
+    padding: 1rem 0;
+    color: var(--white);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: var(--shadow);
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--white);
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-menu {
+    display: flex;
+    list-style: none;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.navbar-menu a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: 0.2s;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+}
+
+.navbar-menu a:hover, .navbar-menu a.active {
+    color: var(--white);
+    background: rgba(255,255,255,0.1);
+}
+
+/* --- BUTTONS --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    border: 1px solid transparent;
+    gap: 0.5rem;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary { 
+    background: var(--primary); 
+    color: white; 
+}
+.btn-primary:hover { 
+    background: var(--primary-hover); 
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);
+}
+
+.btn-secondary {
+    background: var(--white);
+    color: var(--text-main);
+    border-color: var(--gray-200);
+}
+.btn-secondary:hover { background: var(--gray-50); }
+
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: #dc2626; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4); }
+
+.btn-success { background: var(--secondary); color: white; }
+.btn-success:hover { background: #059669; }
+
+/* --- CARDS & FORMS --- */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.form-group { margin-bottom: 1.25rem; }
+.form-label { display: block; font-weight: 600; font-size: 0.875rem; color: #374151; margin-bottom: 0.4rem; }
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+    background: var(--white);
+    color: var(--text-main);
+}
+.form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+    background: var(--white);
+}
+.status-dropdown {
+    padding: 0.15rem 0.3rem !important;
+    font-size: 0.65rem !important;
+    width: auto !important;
+    min-width: 65px !important;
+    height: 24px !important;
+    border-radius: 4px !important;
+    border-width: 1px !important;
+    line-height: 1 !important;
+}
+.form-control::placeholder {
+    color: var(--gray-300);
+}
+
+/* --- TABLES --- */
+.table-responsive { 
+    overflow-x: auto; 
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: white;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Globally hide headers for stackable tables when used in volunteer portal Context */
+.table-stackable thead {
+    display: none !important;
+}
+th {
+    background: var(--gray-50);
+    color: #4b5563;
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+}
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+    color: #1f2937;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--gray-50); }
+
+/* --- BADGES --- */
+.badge {
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Utils */
+.mt-4 { margin-top: 1.5rem; }
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+    .container { padding: 0; width: 100%; border-radius: 0; }
+    .navbar { position: relative !important; padding: 0.5rem 0 !important; }
+    .navbar-brand { font-size: 1.1rem !important; }
+    .navbar .container { flex-direction: column; gap: 0.8rem; text-align: center; padding: 0.5rem; }
+    .navbar-menu { gap: 0.3rem; flex-wrap: wrap; justify-content: center; width: 100%; }
+    .navbar-menu a { font-size: 0.75rem; padding: 0.5rem 0.4rem; flex: 1; text-align: center; min-width: 80px; }
+    
+    .mt-4 { margin-top: 0; }
+    
+    /* Card adjustments */
+    .card { padding: 1.5rem 0.8rem; border-radius: 0; border: none; border-bottom: 4px solid var(--black); margin-bottom: 1.5rem; }
+    
+    h1 { font-size: 1.75rem; margin-bottom: 1.5rem; padding-left: 0.8rem; }
+    h3 { padding-left: 0.2rem; }
+    
+    /* Grid adjustments */
+    div[style*="grid-template-columns"] { 
+        grid-template-columns: 1fr !important; 
+        gap: 0.8rem !important; 
+    }
+    
+    /* Form adjustments */
+    /* Form & Search adjustments */
+    form[style*="display:flex; gap:15px;"], 
+    div[style*="display:flex; gap:15px;"] {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .form-control[name="search"] {
+        font-size: 0.85rem !important;
+        padding: 0.6rem !important;
+    }
+    
+    /* Table stackable - Bread-wise Card Layout */
+    .table-stackable tr { 
+        display: block; 
+        border: none;
+        border-left: 5px solid var(--black);
+        padding: 1.5rem 2rem; 
+        margin-bottom: 2rem; 
+        background: var(--white); 
+        box-shadow: var(--shadow-lg); 
+        border-radius: 12px; 
+        position: relative;
+    }
+    .table-stackable td { 
+        display: block; 
+        padding: 0; 
+        border: none; 
+        text-align: left !important; 
+        width: 100% !important; 
+        margin-bottom: 0.5rem;
+    }
+    .table-stackable td::before { display: none !important; }
+    
+    .attendance-cell { 
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        width: auto !important;
+        background: transparent !important;
+        margin: 0 !important;
+    }
+    .attendance-check { 
+        width: 45px !important; 
+        height: 45px !important; 
+        margin: 0 !important;
+    }
+    .attendance-info {
+        position: absolute;
+        right: 0;
+        top: 50px;
+        white-space: nowrap;
+        text-align: right;
+    }
+    
+    .btn { width: 100%; padding: 1.25rem; font-size: 1.1rem; font-weight: 900; border-radius: 8px; }
+}
