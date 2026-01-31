@@ -92,13 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
             <div class="card" style="border-left:5px solid var(--secondary); text-align:center;">
                 <div class="text-muted" style="font-size:0.75rem; font-weight:900; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem;">Present Teams</div>
                 <div style="font-size:2.5rem; font-weight:900; line-height:1;">
-                    <?php echo $conn->query("SELECT COUNT(*) FROM uiux_teams WHERE attendance=1")->fetch_row()[0]; ?>
+                    <span id="present-teams-count"><?php echo $conn->query("SELECT COUNT(*) FROM uiux_teams WHERE attendance=1")->fetch_row()[0]; ?></span>
                 </div>
             </div>
             <div class="card" style="border-left:5px solid var(--info); text-align:center;">
                 <div class="text-muted" style="font-size:0.75rem; font-weight:900; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem;">Paid Teams</div>
                 <div style="font-size:2.5rem; font-weight:900; line-height:1;">
-                    <?php echo $conn->query("SELECT COUNT(*) FROM uiux_teams WHERE payment='paid'")->fetch_row()[0]; ?>
+                    <span id="paid-teams-count"><?php echo $conn->query("SELECT COUNT(*) FROM uiux_teams WHERE payment='paid'")->fetch_row()[0]; ?></span>
                 </div>
             </div>
             <div class="card" style="border-left:5px solid var(--warning); text-align:center;">
@@ -188,8 +188,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                                     <?php echo $t['attendance'] ? 'checked' : ''; ?>
                                     style="transform:scale(1.5); cursor:pointer;">
                                 <div class="attendance-info">
-                                    <?php if ($t['attendance'] && $t['attendance_by']): ?>
-                                        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">BY: <?php echo htmlspecialchars($t['attendance_by']); ?></div>
+                                    <?php if (!empty($t['attendance_by'])): ?>
+                                        <div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">
+                                            <?php echo $t['attendance'] ? 'Checked by' : 'Unchecked by'; ?> <?php echo htmlspecialchars($t['attendance_by']); ?>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -209,6 +211,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
 
     <script>
         let counter = 0;
+        const currentUser = "<?php echo htmlspecialchars($_SESSION['admin_user']); ?>";
+        const lastActionTimes = {};
 
         function addMemberRow(name = '', sec = '') {
             const div = document.createElement('div');
@@ -244,6 +248,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
             if (e.target.classList.contains('attendance-check')) {
                 const id = e.target.dataset.id;
                 const status = e.target.checked ? 1 : 0;
+
+                // Optimistic UI Update
+                lastActionTimes[id] = Date.now();
+                const cell = e.target.closest('.attendance-cell');
+                const infoDiv = cell.querySelector('.attendance-info');
+                const actionText = status ? 'Checked by' : 'Unchecked by';
+                infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${currentUser}</div>`;
+
+                // Update Stats
+                const countEl = document.getElementById('present-teams-count');
+                if (countEl) {
+                    let current = parseInt(countEl.innerText);
+                    countEl.innerText = status ? current + 1 : current - 1;
+                }
+
                 fetch('../api/attendance.php', {
                     method: 'POST',
                     headers: {
@@ -255,6 +274,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
         });
 
         function updateStatus(teamId, field, value) {
+            // Stats logic
+            if (field === 'payment') {
+                const countEl = document.getElementById('paid-teams-count');
+                if (countEl) {
+                    let current = parseInt(countEl.innerText);
+                    if (value === 'paid') countEl.innerText = current + 1;
+                    else countEl.innerText = current - 1;
+                }
+            }
+
             const body = new URLSearchParams();
             body.append('type', 'ui_ux');
             body.append('team_id', teamId);
@@ -286,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
         }
 
         setInterval(() => {
-            fetch('../api/attendance.php?type=ui_ux')
+            fetch('../api/attendance.php?type=ui_ux&t=' + Date.now())
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
@@ -297,18 +326,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                                 const ck = cell.querySelector('.attendance-check');
                                 const infoDiv = cell.querySelector('.attendance-info');
 
-                                if (ck && !ck.matches(':focus')) ck.checked = att.status == 1;
+                                const lastAct = lastActionTimes[id] || 0;
+                                if (Date.now() - lastAct > 4000) {
+                                    if (ck && !ck.matches(':focus')) ck.checked = att.status == 1;
 
-                                if (att.status == 1 && att.by) {
-                                    infoDiv.innerHTML = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">BY: ${att.by}</div>`;
-                                } else {
-                                    infoDiv.innerHTML = '';
+                                    if (att.by) {
+                                        const isChecked = (att.status == 1 || att.status === '1' || att.status === true);
+                                        const actionText = isChecked ? 'Checked by' : 'Unchecked by';
+                                        infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${att.by}</div>`;
+                                    } else {
+                                        infoDiv.innerHTML = '';
+                                    }
                                 }
                             }
                         });
+
+                        // UPDATE STATS
+                        const allAtt = Object.values(data.attendance);
+                        const presentCount = allAtt.filter(a => a.status == 1).length;
+                        const paidCount = allAtt.filter(a => a.payment && a.payment.toLowerCase() === 'paid').length;
+
+                        const pEl = document.getElementById('present-teams-count');
+                        if (pEl) pEl.innerText = presentCount;
+
+                        const pdEl = document.getElementById('paid-teams-count');
+                        if (pdEl) pdEl.innerText = paidCount;
                     }
                 });
-        }, 5000);
+        }, 1000);
     </script>
 </body>
 

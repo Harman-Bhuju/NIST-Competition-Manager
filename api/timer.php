@@ -19,7 +19,7 @@ if ($action === 'status') {
     $settings = $conn->query("SELECT * FROM competition_settings WHERE category = 'c_debug'")->fetch_assoc();
 
     if ($category === 'c_debug') {
-        $teams_sql = "SELECT t.id, t.team_name, t.timer_status, t.end_time, t.attendance, 
+        $teams_sql = "SELECT t.id, t.team_name, t.timer_status, t.end_time, t.attendance, t.laptop, 
                              t.marks, t.easy_solved, t.intermediate_solved, t.hard_solved,
                              a.username as stopped_by, a2.username as attendance_by, a3.username as scored_by
                       FROM c_debug_teams t

@@ -590,7 +590,13 @@ while ($row = $result->fetch_assoc()) {
                                             data-id="<?php echo $tid; ?>"
                                             <?php echo ($data['attendance'] ?? 0) ? 'checked' : ''; ?>
                                             style="cursor:pointer; accent-color:var(--black);">
-                                        <div class="attendance-info"></div>
+                                        <div class="attendance-info">
+                                            <?php if (($data['attendance_by'] ?? null)): ?>
+                                                <div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">
+                                                    <?php echo ($data['attendance'] ?? 0) ? 'Checked by' : 'Unchecked by'; ?> <?php echo htmlspecialchars($data['attendance_by']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -602,6 +608,9 @@ while ($row = $result->fetch_assoc()) {
     </div>
 
     <script>
+        const currentUser = "<?php echo htmlspecialchars($_SESSION['admin_user']); ?>";
+        const lastActionTimes = {};
+
         function stopTimer(teamId) {
             if (!confirm('Stop timer for this team?')) return;
             fetch('api/timer.php', {
@@ -619,8 +628,45 @@ while ($row = $result->fetch_assoc()) {
         let serverClientOffset = 0;
         let offsetKnown = false;
 
+        const category = "<?php echo $category; ?>";
+
+        function updateUIUXAttendance() {
+            fetch(`api/attendance.php?type=ui_ux&t=${Date.now()}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.attendance) {
+                        Object.keys(data.attendance).forEach(id => {
+                            const att = data.attendance[id];
+                            const attCell = document.querySelector(`.attendance-cell[data-team-id="${id}"]`);
+                            if (attCell) {
+                                const ck = attCell.querySelector('.attendance-check');
+                                const infoDiv = attCell.querySelector('.attendance-info');
+
+                                if (ck && !ck.matches(':focus')) {
+                                    const lastAct = lastActionTimes[id] || 0;
+                                    if (Date.now() - lastAct > 4000) {
+                                        ck.checked = att.status == 1;
+                                    }
+                                }
+
+                                if (att.by) {
+                                    const lastAct = lastActionTimes[id] || 0;
+                                    if (Date.now() - lastAct > 4000) {
+                                        const isChecked = (att.status == 1 || att.status === '1' || att.status === true);
+                                        const actionText = isChecked ? 'Checked by' : 'Unchecked by';
+                                        infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${att.by}</div>`;
+                                    }
+                                } else {
+                                    infoDiv.innerHTML = '';
+                                }
+                            }
+                        });
+                    }
+                });
+        }
+
         function updateGlobalTimer() {
-            fetch(`api/timer.php?action=status&category=<?php echo $category; ?>`)
+            fetch(`api/timer.php?action=status&category=${category}&t=${Date.now()}`)
                 .then(r => r.json())
                 .then(data => {
                     const display = document.getElementById('global-timer-display');
@@ -651,61 +697,95 @@ while ($row = $result->fetch_assoc()) {
                         display.style.color = 'var(--text-main)';
                     }
 
-                    if (data.teams) {
-                        data.teams.forEach(team => {
-                            const controlCard = document.querySelector(`.timer-control-card[data-team-id="${team.id}"]`);
-                            if (controlCard) {
-                                const statusDiv = controlCard.querySelector('.team-timer-status');
-                                const actionDiv = controlCard.querySelector('.team-timer-action');
+                    // Only update teams via timer API if NOT ui_ux (or for timer specific stuff)
+                    // Since ui_ux has no timer status, we can skip this loop for ui_ux completely
+                    // and rely on updateUIUXAttendance
+                    if (category === 'c_debug' && data.teams) {
+                        try {
+                            data.teams.forEach(team => {
+                                const controlCard = document.querySelector(`.timer-control-card[data-team-id="${team.id}"]`);
+                                if (controlCard) {
+                                    const statusDiv = controlCard.querySelector('.team-timer-status');
+                                    const actionDiv = controlCard.querySelector('.team-timer-action');
 
-                                if (team.timer_status === 'stopped' && team.end_time) {
-                                    const start = new Date(data.start_time.replace(/-/g, "/")).getTime();
-                                    const end = new Date(team.end_time.replace(/-/g, "/")).getTime();
-                                    const elapsed = Math.max(0, Math.floor((end - start) / 1000));
-                                    const m = Math.floor(elapsed / 60);
-                                    const s = elapsed % 60;
-                                    statusDiv.innerHTML = `<span style="color:var(--danger); font-weight:900; text-shadow:0 0 10px rgba(255,0,0,0.3);">STOPPED AT ${m}:${s < 10 ? '0' : ''}${s}</span>`;
-                                    actionDiv.innerHTML = `<div class="badge" style="background:var(--danger); color:var(--white); font-weight:900; box-shadow:0 0 10px rgba(220,53,69,0.3);">DONE</div>`;
-                                } else if (team.timer_status === 'running' && data.status === 'running') {
-                                    statusDiv.innerHTML = '<span style="color:var(--secondary); font-weight:900; text-shadow:0 0 10px rgba(0,255,0,0.2);">ALIVE / RUNNING</span>';
-                                    actionDiv.innerHTML = `<button onclick="stopTimer(${team.id})" class="btn" style="background:var(--white); color:var(--black); padding:10px 25px; font-weight:900; box-shadow:0 0 20px rgba(255,255,255,0.4);">STOP</button>`;
-                                } else {
-                                    const stMsg = data.status === 'finished' ? 'FINISHED' : 'WAITING...';
-                                    statusDiv.innerHTML = `<span style="color:rgba(255,255,255,0.6); font-weight:900;">${stMsg}</span>`;
-                                    actionDiv.innerHTML = '';
+                                    if (team.timer_status === 'stopped' && team.end_time) {
+                                        const start = new Date(data.start_time.replace(/-/g, "/")).getTime();
+                                        const end = new Date(team.end_time.replace(/-/g, "/")).getTime();
+                                        const elapsed = Math.max(0, Math.floor((end - start) / 1000));
+                                        const m = Math.floor(elapsed / 60);
+                                        const s = elapsed % 60;
+                                        statusDiv.innerHTML = `<span style="color:var(--danger); font-weight:900; text-shadow:0 0 10px rgba(255,0,0,0.3);">STOPPED AT ${m}:${s < 10 ? '0' : ''}${s}</span>`;
+                                        actionDiv.innerHTML = `<div class="badge" style="background:var(--danger); color:var(--white); font-weight:900; box-shadow:0 0 10px rgba(220,53,69,0.3);">DONE</div>`;
+                                    } else if (team.timer_status === 'running' && data.status === 'running') {
+                                        statusDiv.innerHTML = '<span style="color:var(--secondary); font-weight:900; text-shadow:0 0 10px rgba(0,255,0,0.2);">ALIVE / RUNNING</span>';
+                                        actionDiv.innerHTML = `<button onclick="stopTimer(${team.id})" class="btn" style="background:var(--white); color:var(--black); padding:10px 25px; font-weight:900; box-shadow:0 0 20px rgba(255,255,255,0.4);">STOP</button>`;
+                                    } else {
+                                        const stMsg = data.status === 'finished' ? 'FINISHED' : 'WAITING...';
+                                        statusDiv.innerHTML = `<span style="color:rgba(255,255,255,0.6); font-weight:900;">${stMsg}</span>`;
+                                        actionDiv.innerHTML = '';
+                                    }
                                 }
-                            }
 
-                            const attCell = document.querySelector(`.attendance-cell[data-team-id="${team.id}"]`);
-                            if (attCell) {
-                                const ck = attCell.querySelector('.attendance-check');
-                                const infoDiv = attCell.querySelector('.attendance-info');
-                                if (ck && !ck.matches(':focus')) ck.checked = team.attendance == 1;
+                                const attCell = document.querySelector(`.attendance-cell[data-team-id="${team.id}"]`);
+                                if (attCell) {
+                                    const ck = attCell.querySelector('.attendance-check');
+                                    const infoDiv = attCell.querySelector('.attendance-info');
+                                    if (ck && !ck.matches(':focus')) {
+                                        const lastAct = lastActionTimes[team.id] || 0;
+                                        if (Date.now() - lastAct > 2000) {
+                                            ck.checked = team.attendance == 1;
+                                        }
+                                    }
 
-                                if (team.attendance == 1 && team.attendance_by) {
-                                    infoDiv.innerHTML = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">BY: ${team.attendance_by}</div>`;
-                                } else {
-                                    infoDiv.innerHTML = '';
+                                    if (team.attendance_by) {
+                                        const lastAct = lastActionTimes[team.id] || 0;
+                                        if (Date.now() - lastAct > 2000) {
+                                            const isChecked = (team.attendance == 1 || team.attendance === '1' || team.attendance === true);
+                                            const actionText = isChecked ? 'Checked by' : 'Unchecked by';
+                                            infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${team.attendance_by}</div>`;
+                                        }
+                                    } else {
+                                        infoDiv.innerHTML = '';
+                                    }
                                 }
-                            }
-
-                        });
+                            });
+                        } catch (e) {
+                            console.error("Error updating timer/attendance:", e);
+                        }
                     }
                 });
         }
         setInterval(updateGlobalTimer, 1000);
+
+        if (category === 'ui_ux') {
+            setInterval(updateUIUXAttendance, 1000);
+            updateUIUXAttendance();
+        }
+
         updateGlobalTimer();
 
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('attendance-check')) {
+                const id = e.target.dataset.id;
+                const status = e.target.checked ? 1 : 0;
+
+                // Optimistic Update
+                lastActionTimes[id] = Date.now();
+                const cell = e.target.closest('.attendance-cell');
+                const infoDiv = cell.querySelector('.attendance-info');
+                const actionText = status ? 'Checked by' : 'Unchecked by';
+                infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${currentUser}</div>`;
+
+
+
                 fetch('api/attendance.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    body: `type=<?php echo $category; ?>&team_id=${e.target.dataset.id}&status=${e.target.checked ? 1 : 0}`
+                    body: `type=<?php echo $category; ?>&team_id=${id}&status=${status}`
                 }).then(r => r.json()).then(data => {
-                    if (data.success) updateGlobalTimer();
+                    // Background sync
                 });
             }
         });

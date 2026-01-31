@@ -409,6 +409,9 @@ $teams = $conn->query($sql);
     </div>
 
     <script>
+        const currentUser = "<?php echo htmlspecialchars($_SESSION['admin_user']); ?>";
+        const lastSaveTimes = {};
+
         function saveScore(teamId) {
             const row = document.getElementById('row-' + teamId);
             const easy = row.querySelector('.score-input-easy').value;
@@ -440,7 +443,9 @@ $teams = $conn->query($sql);
                             label.style.marginTop = '4px';
                             row.querySelector('.total-display').appendChild(label);
                         }
-                        label.innerText = 'by ' + data.scored_by;
+                        label.innerText = 'by ' + currentUser; // Optimistic update
+
+                        lastSaveTimes[teamId] = Date.now(); // Mark as recently saved
 
                         row.style.background = '#f0fdf4';
                         setTimeout(() => row.style.background = 'transparent', 1500);
@@ -454,6 +459,7 @@ $teams = $conn->query($sql);
                 .then(data => {
                     if (data.teams) {
                         data.teams.forEach(team => {
+                            const row = document.getElementById('row-' + team.id);
                             if (row) {
                                 const easyIn = row.querySelector('.score-input-easy');
                                 const interIn = row.querySelector('.score-input-inter');
@@ -465,7 +471,10 @@ $teams = $conn->query($sql);
                                 function shouldUpdate(el) {
                                     if (el === document.activeElement) return false;
                                     const lastEdit = parseInt(el.dataset.lastEdit || 0);
-                                    return (now - lastEdit > 5000); // 5s buffer
+                                    const lastSave = lastSaveTimes[team.id] || 0;
+                                    // Don't update if user typed recently OR saved recently (server might lag behind)
+                                    if (now - lastSave < 2000) return false;
+                                    return (now - lastEdit > 5000); // 5s buffer for typing
                                 }
 
                                 if (easyIn && shouldUpdate(easyIn)) easyIn.value = team.easy_solved;
@@ -484,7 +493,13 @@ $teams = $conn->query($sql);
                                         label.style.marginTop = '4px';
                                         row.querySelector('.total-display').appendChild(label);
                                     }
-                                    label.innerText = 'by ' + team.scored_by;
+                                    if (team.scored_by) {
+                                        // Don't overwrite if recently saved
+                                        const lastSave = lastSaveTimes[team.id] || 0;
+                                        if (now - lastSave > 2000) {
+                                            label.innerText = 'by ' + team.scored_by;
+                                        }
+                                    }
                                 }
                             }
                         });

@@ -97,6 +97,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                 <div class="text-muted" style="font-size:0.75rem; font-weight:700; text-transform:uppercase;">Total Participants</div>
                 <div style="font-size:2.5rem; font-weight:800; color:var(--secondary);"><?php echo $stats['total_members']; ?></div>
             </div>
+            <div class="card" style="margin-bottom:0; text-align:center; padding:1.5rem;">
+                <div class="text-muted" style="font-size:0.75rem; font-weight:700; text-transform:uppercase;">Present Teams</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--success);">
+                    <span id="present-teams-count"><?php echo $conn->query("SELECT COUNT(*) FROM c_debug_teams WHERE attendance=1")->fetch_row()[0]; ?></span>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:0; text-align:center; padding:1.5rem;">
+                <div class="text-muted" style="font-size:0.75rem; font-weight:700; text-transform:uppercase;">Laptops</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--info);">
+                    <span id="laptop-count"><?php echo $conn->query("SELECT COUNT(*) FROM c_debug_teams WHERE laptop='Yes'")->fetch_row()[0]; ?></span>
+                </div>
+            </div>
             <div class="card" style="margin-bottom:0; text-align:center; padding:1.5rem; background:var(--gray-50);">
                 <div class="text-muted" style="font-size:0.75rem; font-weight:700; text-transform:uppercase;">Global Timer</div>
                 <div id="global-timer-display" style="font-size:2.5rem; font-weight:800; font-family:monospace;">20:00</div>
@@ -228,8 +240,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                                     <?php echo $t['attendance'] ? 'checked' : ''; ?>
                                     style="transform:scale(1.5); cursor:pointer;">
                                 <div class="attendance-info">
-                                    <?php if ($t['attendance'] && $t['attendance_by']): ?>
-                                        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">BY: <?php echo htmlspecialchars($t['attendance_by']); ?></div>
+                                    <?php if (!empty($t['attendance_by'])): ?>
+                                        <div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">
+                                            <?php echo $t['attendance'] ? 'Checked by' : 'Unchecked by'; ?> <?php echo htmlspecialchars($t['attendance_by']); ?>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -255,6 +269,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
 
     <script>
         let counter = 0;
+        const currentUser = "<?php echo htmlspecialchars($_SESSION['admin_user']); ?>";
+        const lastActionTimes = {}; // Store last interaction time per team to debounce polling
 
         function updatePermission(enabled) {
             fetch('../api/settings.php', {
@@ -369,13 +385,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                                 const infoDiv = attCell.querySelector('.attendance-info');
 
                                 if (ck && !ck.matches(':focus')) {
-                                    ck.checked = team.attendance == 1;
+                                    // Only update if no local action in last 2 seconds
+                                    const lastAct = lastActionTimes[team.id] || 0;
+                                    if (Date.now() - lastAct > 4000) {
+                                        ck.checked = team.attendance == 1;
+                                    }
                                 }
 
-                                if (team.attendance == 1 && team.attendance_by) {
-                                    infoDiv.innerHTML = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">BY: ${team.attendance_by}</div>`;
-                                } else {
-                                    infoDiv.innerHTML = '';
+                                // Prevent overwriting text if recently modified locally
+                                const lastAct = lastActionTimes[team.id] || 0;
+                                if (Date.now() - lastAct > 4000) {
+                                    if (team.attendance_by) {
+                                        const isChecked = (team.attendance == 1 || team.attendance === '1' || team.attendance === true);
+                                        const actionText = isChecked ? 'Checked by' : 'Unchecked by';
+                                        infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${team.attendance_by}</div>`;
+                                    } else {
+                                        infoDiv.innerHTML = '';
+                                    }
                                 }
                             }
 
@@ -395,6 +421,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                                 if (team.hard_solved !== undefined) breakdownEl.querySelector('.val-h').innerText = team.hard_solved;
                             }
                         });
+                        // UPDATE STATS FROM LIVE DATA
+                        const presentCount = data.teams.filter(t => t.attendance == 1).length;
+                        const laptopCount = data.teams.filter(t => t.laptop && t.laptop.toUpperCase() === 'YES').length;
+
+                        const pEl = document.getElementById('present-teams-count');
+                        if (pEl) pEl.innerText = presentCount;
+
+                        const lEl = document.getElementById('laptop-count');
+                        if (lEl) lEl.innerText = laptopCount;
                     }
                 });
         }
@@ -416,7 +451,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
         function editTeam(id, name, laptop, members) {
             document.getElementById('team_id').value = id;
             document.getElementById('team_name').value = name;
-            document.getElementById('laptop').value = laptop;
+            document.getElementById('laptop').value = laptop.toUpperCase();
             document.getElementById('member-rows').innerHTML = '';
             document.getElementById('form-title').innerText = "Edit Team: " + name;
             JSON.parse(members).forEach(m => addMemberRow(m.name, m.section));
@@ -432,6 +467,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
         }
 
         function updateStatus(teamId, field, value) {
+            // Stats logic for laptop
+            if (field === 'laptop') {
+                const countEl = document.getElementById('laptop-count');
+                const dropdown = document.querySelector(`select[data-team-id="${teamId}"][data-field="laptop"]`);
+                // Since this is onchange, we don't know the exact previous value easily unless stored.
+                // However, we can approximate: if switching to YES, +1. If switching to NO, -1.
+                // But this assumes we are switching FROM the opposite.
+                // A better way for Dropdown:
+                if (countEl && dropdown) {
+                    let current = parseInt(countEl.innerText);
+                    if (value === 'YES') countEl.innerText = current + 1;
+                    else countEl.innerText = current - 1;
+                }
+            }
+
             const body = new URLSearchParams();
             body.append('type', 'c_debug');
             body.append('team_id', teamId);
@@ -466,6 +516,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
             if (e.target.classList.contains('attendance-check')) {
                 const id = e.target.dataset.id;
                 const status = e.target.checked ? 1 : 0;
+
+                // Optimistic UI Update
+                lastActionTimes[id] = Date.now();
+                const cell = e.target.closest('.attendance-cell');
+                const infoDiv = cell.querySelector('.attendance-info');
+                const actionText = status ? 'Checked by' : 'Unchecked by';
+                infoDiv.innerHTML = `<div style="font-size:0.7rem; color:#555; font-weight:600; margin-top:4px;">${actionText} ${currentUser}</div>`;
+
+                // Update Stats
+                const countEl = document.getElementById('present-teams-count');
+                if (countEl) {
+                    let current = parseInt(countEl.innerText);
+                    countEl.innerText = status ? current + 1 : current - 1;
+                }
+
                 fetch('../api/attendance.php', {
                     method: 'POST',
                     headers: {
@@ -473,7 +538,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_team'])) {
                     },
                     body: `type=c_debug&team_id=${id}&status=${status}`
                 }).then(r => r.json()).then(data => {
-                    if (data.success) updateGlobalTimer();
+                    if (data.success) {
+                        // Background sync - no forced reload needed
+                    }
                 });
             }
         });

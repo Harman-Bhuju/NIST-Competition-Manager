@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                FROM c_debug_teams t 
                                LEFT JOIN admin a ON t.attendance_updated_by_id = a.id");
     } else {
-        $result = $conn->query("SELECT t.id, t.attendance, a.username as attendance_by 
+        $result = $conn->query("SELECT t.id, t.attendance, t.payment, a.username as attendance_by 
                                FROM uiux_teams t 
                                LEFT JOIN admin a ON t.attendance_updated_by_id = a.id");
     }
@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     while ($row = $result->fetch_assoc()) {
         $attendance[$row['id']] = [
             'status' => (int)$row['attendance'],
+            'payment' => $row['payment'] ?? null,
             'by' => $row['attendance_by']
         ];
     }
