@@ -445,6 +445,12 @@ $teams = $conn->query($sql);
                         }
                         label.innerText = 'by ' + currentUser; // Optimistic update
 
+                        // Update stored values after successful save
+                        const inputs = row.querySelectorAll('.score-input-easy, .score-input-inter, .score-input-hard');
+                        inputs.forEach(input => {
+                            input.dataset.originalValue = input.value;
+                        });
+
                         lastSaveTimes[teamId] = Date.now(); // Mark as recently saved
 
                         row.style.background = '#f0fdf4';
@@ -477,9 +483,18 @@ $teams = $conn->query($sql);
                                     return (now - lastEdit > 5000); // 5s buffer for typing
                                 }
 
-                                if (easyIn && shouldUpdate(easyIn)) easyIn.value = team.easy_solved;
-                                if (interIn && shouldUpdate(interIn)) interIn.value = team.intermediate_solved;
-                                if (hardIn && shouldUpdate(hardIn)) hardIn.value = team.hard_solved;
+                                if (easyIn && shouldUpdate(easyIn)) {
+                                    easyIn.value = team.easy_solved;
+                                    easyIn.dataset.originalValue = team.easy_solved;
+                                }
+                                if (interIn && shouldUpdate(interIn)) {
+                                    interIn.value = team.intermediate_solved;
+                                    interIn.dataset.originalValue = team.intermediate_solved;
+                                }
+                                if (hardIn && shouldUpdate(hardIn)) {
+                                    hardIn.value = team.hard_solved;
+                                    hardIn.dataset.originalValue = team.hard_solved;
+                                }
 
                                 if (marksDisp) marksDisp.innerText = team.marks;
 
@@ -506,6 +521,27 @@ $teams = $conn->query($sql);
                     }
                 });
         }
+
+        // Setup input focus/blur handlers for auto-select behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store original values and setup handlers
+            document.querySelectorAll('.score-input-easy, .score-input-inter, .score-input-hard').forEach(input => {
+                input.dataset.originalValue = input.value;
+                
+                // Select all on focus - this allows typing to replace the value immediately
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+                
+                // Restore original if user clears the field without entering new value
+                input.addEventListener('blur', function() {
+                    if (this.value === '') {
+                        this.value = this.dataset.originalValue;
+                    }
+                });
+            });
+        });
+
         setInterval(refreshScores, 2000);
     </script>
 </body>

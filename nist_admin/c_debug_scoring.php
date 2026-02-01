@@ -338,6 +338,12 @@ $teams = $conn->query($sql);
                         }
                         label.innerText = 'by ' + data.scored_by;
 
+                        // Update stored values after successful save
+                        const inputs = row.querySelectorAll('.score-input-easy, .score-input-inter, .score-input-hard');
+                        inputs.forEach(input => {
+                            input.dataset.originalValue = input.value;
+                        });
+
                         row.style.background = '#f0fdf4';
                         setTimeout(() => row.style.background = 'transparent', 1500);
                     }
@@ -365,9 +371,18 @@ $teams = $conn->query($sql);
                                     return (now - lastEdit > 5000); // 5 second buffer after typing
                                 }
 
-                                if (easyIn && shouldUpdate(easyIn)) easyIn.value = team.easy_solved;
-                                if (interIn && shouldUpdate(interIn)) interIn.value = team.intermediate_solved;
-                                if (hardIn && shouldUpdate(hardIn)) hardIn.value = team.hard_solved;
+                                if (easyIn && shouldUpdate(easyIn)) {
+                                    easyIn.value = team.easy_solved;
+                                    easyIn.dataset.originalValue = team.easy_solved;
+                                }
+                                if (interIn && shouldUpdate(interIn)) {
+                                    interIn.value = team.intermediate_solved;
+                                    interIn.dataset.originalValue = team.intermediate_solved;
+                                }
+                                if (hardIn && shouldUpdate(hardIn)) {
+                                    hardIn.value = team.hard_solved;
+                                    hardIn.dataset.originalValue = team.hard_solved;
+                                }
 
                                 if (marksDisp) marksDisp.innerText = team.marks;
 
@@ -388,6 +403,27 @@ $teams = $conn->query($sql);
                     }
                 });
         }
+
+        // Setup input focus/blur handlers for auto-select behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store original values and setup handlers
+            document.querySelectorAll('.score-input-easy, .score-input-inter, .score-input-hard').forEach(input => {
+                input.dataset.originalValue = input.value;
+                
+                // Select all on focus - this allows typing to replace the value immediately
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+                
+                // Restore original if user clears the field without entering new value
+                input.addEventListener('blur', function() {
+                    if (this.value === '') {
+                        this.value = this.dataset.originalValue;
+                    }
+                });
+            });
+        });
+
         setInterval(refreshScores, 3000);
     </script>
 </body>
