@@ -30,7 +30,7 @@ class PDF extends FPDF
         $this->SetY(-15);
         $this->SetFont('Arial', 'I', 8);
         $this->SetTextColor(127, 140, 141);
-        $this->Cell(0, 10, 'Generated for NIST - Page ' . $this->PageNo() . '/{nb}', 0, 0, 'C');
+        $this->Cell(0, 10, 'Page ' . $this->PageNo() . '/{nb}', 0, 0, 'C');
     }
 }
 
@@ -48,11 +48,12 @@ $pdf->SetFont('Arial', 'B', 11);
 if ($category === 'c_debug') {
     // Header
     $pdf->Cell(15, 12, 'SN', 1, 0, 'C', true);
-    $pdf->Cell(55, 12, 'Team Name', 1, 0, 'C', true);
-    $pdf->Cell(85, 12, 'Member Name', 1, 0, 'C', true);
-    $pdf->Cell(35, 12, 'Section', 1, 1, 'C', true);
+    $pdf->Cell(50, 12, 'Team Name', 1, 0, 'C', true);
+    $pdf->Cell(70, 12, 'Member Name', 1, 0, 'C', true);
+    $pdf->Cell(30, 12, 'Section', 1, 0, 'C', true);
+    $pdf->Cell(25, 12, 'Laptop', 1, 1, 'C', true);  // Changed to 1, 1 to end row
 
-    $sql = "SELECT t.id, t.team_name, m.team_member as member_name, m.section 
+    $sql = "SELECT t.id, t.team_name, t.laptop, m.team_member as member_name, m.section
             FROM c_debug_teams t
             LEFT JOIN c_debug_members m ON t.id = m.team_id
             ORDER BY t.id ASC, m.team_member";
@@ -74,6 +75,9 @@ $teams = [];
 while ($row = $result->fetch_assoc()) {
     if (!$row['id']) continue;
     $teams[$row['id']]['team_name'] = $row['team_name'];
+    if ($category === 'c_debug') {
+        $teams[$row['id']]['laptop'] = $row['laptop'] ?? '';
+    }
     $teams[$row['id']]['members'][] = [
         'name' => $row['member_name'],
         'section' => $row['section']
@@ -96,17 +100,36 @@ foreach ($teams as $teamId => $data) {
 
     $startY = $pdf->GetY();
 
-    // SN and Team Name (Spanning multiple rows)
-    $pdf->Cell(15, $totalHeight, $sn++, 1, 0, 'C');
+    if ($category === 'c_debug') {
+        // SN and Team Name (Spanning multiple rows)
+        $pdf->Cell(15, $totalHeight, $sn++, 1, 0, 'C');
 
-    $currentX = $pdf->GetX();
-    $pdf->Cell(55, $totalHeight, htmlspecialchars($data['team_name']), 1, 0, 'C');
+        $currentX = $pdf->GetX();
+        $pdf->Cell(50, $totalHeight, htmlspecialchars($data['team_name']), 1, 0, 'C');
 
-    // Member list
-    foreach ($members as $index => $m) {
-        $pdf->SetXY($currentX + 55, $startY + ($index * $rowHeight));
-        $pdf->Cell(85, $rowHeight, htmlspecialchars($m['name']), 1, 0, 'L');
-        $pdf->Cell(35, $rowHeight, htmlspecialchars($m['section']), 1, 1, 'C');
+        // Laptop column (spanning)
+        $pdf->SetXY($currentX + 50 + 70 + 30, $startY);
+        $pdf->Cell(25, $totalHeight, htmlspecialchars($data['laptop']), 1, 0, 'C');
+
+        // Member list
+        foreach ($members as $index => $m) {
+            $pdf->SetXY($currentX + 50, $startY + ($index * $rowHeight));
+            $pdf->Cell(70, $rowHeight, htmlspecialchars($m['name']), 1, 0, 'L');
+            $pdf->Cell(30, $rowHeight, htmlspecialchars($m['section']), 1, 0, 'C');
+        }
+    } else {
+        // SN and Team Name (Spanning multiple rows)
+        $pdf->Cell(15, $totalHeight, $sn++, 1, 0, 'C');
+
+        $currentX = $pdf->GetX();
+        $pdf->Cell(55, $totalHeight, htmlspecialchars($data['team_name']), 1, 0, 'C');
+
+        // Member list
+        foreach ($members as $index => $m) {
+            $pdf->SetXY($currentX + 55, $startY + ($index * $rowHeight));
+            $pdf->Cell(85, $rowHeight, htmlspecialchars($m['name']), 1, 0, 'L');
+            $pdf->Cell(35, $rowHeight, htmlspecialchars($m['section']), 1, 1, 'C');
+        }
     }
 
     // Move Y to after this team block for next team

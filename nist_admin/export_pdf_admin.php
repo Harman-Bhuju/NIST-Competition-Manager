@@ -23,7 +23,6 @@ class PDF extends FPDF
         $this->SetTextColor(31, 41, 55);
         $title = 'NIST EVENT - ' . ($this->category === 'c_debug' ? 'C-Debug' : 'UI-UX');
         if (isset($_GET['winners_only'])) $title .= ' - TOP 3 WINNERS';
-        else $title .= ' - Internal Report';
         $this->Cell(0, 15, $title, 0, 1, 'C');
         $this->SetDrawColor(209, 213, 219);
         $this->SetLineWidth(0.1);
@@ -36,7 +35,7 @@ class PDF extends FPDF
         $this->SetY(-15);
         $this->SetFont('Arial', 'I', 8);
         $this->SetTextColor(127, 140, 141);
-        $this->Cell(0, 10, 'Generated for NIST Admin - Page ' . $this->PageNo() . '/{nb}', 0, 0, 'C');
+        $this->Cell(0, 10, 'Page ' . $this->PageNo() . '/{nb}', 0, 0, 'C');
     }
 }
 
